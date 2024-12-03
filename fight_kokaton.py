@@ -4,14 +4,18 @@ import sys
 import time
 import pygame as pg
 
-
 WIDTH = 1100  # ゲームウィンドウの幅
 HEIGHT = 650  # ゲームウィンドウの高さ
 NUM_OF_BOMBS = 5  # 爆弾の個数
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+os.chdir(os.path.dirname(os.path.abspath(__file__)))  # スクリプト実行ディレクトリに変更
 
 
 def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
+    """
+    オブジェクトが画面内or画面外を判定し，真理値タプルを返す関数
+    引数：こうかとんや爆弾，ビームなどのRect
+    戻り値：横方向，縦方向のはみ出し判定結果（画面内：True／画面外：False）
+    """
     yoko, tate = True, True
     if obj_rct.left < 0 or WIDTH < obj_rct.right:
         yoko = False
@@ -21,12 +25,7 @@ def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
 
 
 class Bird:
-    delta = {
-        pg.K_UP: (0, -5),
-        pg.K_DOWN: (0, +5),
-        pg.K_LEFT: (-5, 0),
-        pg.K_RIGHT: (+5, 0),
-    }
+    delta = {pg.K_UP: (0, -5), pg.K_DOWN: (0, +5), pg.K_LEFT: (-5, 0), pg.K_RIGHT: (+5, 0)}
     img0 = pg.transform.rotozoom(pg.image.load("fig/3.png"), 0, 0.9)
     img = pg.transform.flip(img0, True, False)
     imgs = {
@@ -42,7 +41,7 @@ class Bird:
 
     def __init__(self, xy: tuple[int, int]):
         self.img = __class__.imgs[(+5, 0)]
-        self.rct: pg.Rect = self.img.get_rect()
+        self.rct = self.img.get_rect()
         self.rct.center = xy
 
     def change_img(self, num: int, screen: pg.Surface):
@@ -64,26 +63,26 @@ class Bird:
 
 
 class Beam:
-    def __init__(self, bird: "Bird"):
-        self.img = pg.image.load(f"fig/beam.png")
+    def __init__(self, bird: Bird):
+        self.img = pg.image.load("fig/beam.png")
         self.rct = self.img.get_rect()
         self.rct.centery = bird.rct.centery
         self.rct.left = bird.rct.right
-        self.vx, self.vy = +5, 0
+        self.vx = +10
 
     def update(self, screen: pg.Surface):
-        self.rct.move_ip(self.vx, self.vy)
-        screen.blit(self.img, self.rct)
+        self.rct.move_ip(self.vx, 0)
+        if check_bound(self.rct) == (True, True):
+            screen.blit(self.img, self.rct)
 
 
 class Bomb:
     def __init__(self, color: tuple[int, int, int], rad: int):
-        self.img = pg.Surface((2 * rad, 2 * rad))
+        self.img = pg.Surface((2 * rad, 2 * rad), pg.SRCALPHA)
         pg.draw.circle(self.img, color, (rad, rad), rad)
-        self.img.set_colorkey((0, 0, 0))
         self.rct = self.img.get_rect()
         self.rct.center = random.randint(0, WIDTH), random.randint(0, HEIGHT)
-        self.vx, self.vy = +5, +5
+        self.vx, self.vy = random.choice([-5, 5]), random.choice([-5, 5])
 
     def update(self, screen: pg.Surface):
         yoko, tate = check_bound(self.rct)
@@ -96,13 +95,15 @@ class Bomb:
 
 
 def main():
+    pg.init()
     pg.display.set_caption("たたかえ！こうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load("fig/pg_bg.jpg")
+    clock = pg.time.Clock()
+
     bird = Bird((300, 200))
     bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]
     beams = []
-    clock = pg.time.Clock()
 
     while True:
         for event in pg.event.get():
@@ -113,36 +114,39 @@ def main():
 
         screen.blit(bg_img, [0, 0])
 
-        for bomb in bombs:
+        # 衝突判定
+        for bomb in bombs[:]:
             if bird.rct.colliderect(bomb.rct):
                 bird.change_img(8, screen)
-                fonto = pg.font.Font(None, 80)
-                txt = fonto.render("Game Over", True, (255, 0, 0))
-                screen.blit(txt, [WIDTH // 2 - 150, HEIGHT // 2])
+                font = pg.font.Font(None, 80)
+                text = font.render("Game Over", True, (255, 0, 0))
+                screen.blit(text, [WIDTH // 2 - 150, HEIGHT // 2])
                 pg.display.update()
-                time.sleep(1)
+                time.sleep(2)
                 return
 
-        beams_to_remove = []
-        bombs_to_remove = []
-        for beam in beams:
-            for bomb in bombs:
+        # ビームと爆弾の衝突判定
+        for beam in beams[:]:
+            for bomb in bombs[:]:
                 if beam.rct.colliderect(bomb.rct):
-                    beams_to_remove.append(beam)
-                    bombs_to_remove.append(bomb)
-                    bird.change_img(6, screen)
+                    beams.remove(beam)
+                    bombs.remove(bomb)
+                    break
 
-        beams = [beam for beam in beams if beam not in beams_to_remove]
-        bombs = [bomb for bomb in bombs if bomb not in bombs_to_remove]
-
-        beams = [beam for beam in beams if check_bound(beam.rct) == (True, True)]
-
+        # 更新処理
         key_lst = pg.key.get_pressed()
         bird.update(key_lst, screen)
+
         for bomb in bombs:
             bomb.update(screen)
-        for beam in beams:
-            beam.update(screen)
+        for beam in beams[:]:
+            beam.update(screen)      
 
         pg.display.update()
-        clock.ti
+        clock.tick(50)
+
+
+if __name__ == "__main__":
+    main()
+    pg.quit()
+    sys.exit()
