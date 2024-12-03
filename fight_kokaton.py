@@ -3,6 +3,7 @@ import random
 import sys
 import time
 import pygame as pg
+import math
 
 
 WIDTH = 1100  # ゲームウィンドウの幅
@@ -24,17 +25,15 @@ def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
         tate = False
     return yoko, tate
 
-
 class Bird:
-    """
-    ゲームキャラクター（こうかとん）に関するクラス
-    """
     delta = {  # 押下キーと移動量の辞書
         pg.K_UP: (0, -5),
         pg.K_DOWN: (0, +5),
         pg.K_LEFT: (-5, 0),
         pg.K_RIGHT: (+5, 0),
     }
+
+    # 画像の初期化
     img0 = pg.transform.rotozoom(pg.image.load("fig/3.png"), 0, 0.9)
     img = pg.transform.flip(img0, True, False)  # デフォルトのこうかとん（右向き）
     imgs = {  # 0度から反時計回りに定義
@@ -53,10 +52,11 @@ class Bird:
         こうかとん画像Surfaceを生成する
         引数 xy：こうかとん画像の初期位置座標タプル
         """
-        self.img = __class__.imgs[(+5, 0)]
+        self.img = __class__.imgs[(+5, 0)]  # クラス変数を参照
         self.rct: pg.Rect = self.img.get_rect()
         self.rct.center = xy
-
+        self.dire = (+5, 0)  # デフォルトの向き（右）
+        
     def change_img(self, num: int, screen: pg.Surface):
         """
         こうかとん画像を切り替え，画面に転送する
@@ -81,30 +81,24 @@ class Bird:
         if check_bound(self.rct) != (True, True):
             self.rct.move_ip(-sum_mv[0], -sum_mv[1])
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
-            self.img = __class__.imgs[tuple(sum_mv)]
+            self.dire = tuple(sum_mv)  # 向きの更新
+            self.img = __class__.imgs[self.dire]
         screen.blit(self.img, self.rct)
 
 
+
 class Beam:
-    """
-    こうかとんが放つビームに関するクラス
-    """
-    def __init__(self, bird:"Bird"):
-        """
-        ビーム画像Surfaceを生成する
-        引数 bird：ビームを放つこうかとん（Birdインスタンス）
-        """
-        self.img = pg.image.load(f"fig/beam.png")
+    def __init__(self, bird: "Bird"):
+        self.img = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), 0, 1.0)
         self.rct = self.img.get_rect()
-        self.rct.centery = bird.rct.centery  # こうかとんの中心縦座標
-        self.rct.left = bird.rct.right  # こうかとんの右座標
-        self.vx, self.vy = +5, 0
+        self.rct.center = bird.rct.center  # こうかとんの中心
+        vx, vy = bird.dire  # Birdクラスの向きに応じて設定
+        norm = math.sqrt(vx**2 + vy**2)
+        self.vx, self.vy = (vx / norm) * 5, (vy / norm) * 5
+        angle = math.degrees(math.atan2(-self.vy, self.vx))
+        self.img = pg.transform.rotozoom(self.img, angle, 1.0)
 
     def update(self, screen: pg.Surface):
-        """
-        ビームを速度ベクトルself.vx, self.vyに基づき移動させる
-        引数 screen：画面Surface
-        """
         if check_bound(self.rct) == (True, True):
             self.rct.move_ip(self.vx, self.vy)
             screen.blit(self.img, self.rct)    
