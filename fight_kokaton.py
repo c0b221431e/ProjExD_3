@@ -75,7 +75,6 @@ class Bird:
         screen.blit(self.img, self.rct)
 
 
-
 class Beam:
     def __init__(self, bird: "Bird"):
         self.img = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), 0, 1.0)
