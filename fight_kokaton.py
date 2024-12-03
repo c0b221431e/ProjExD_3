@@ -141,15 +141,42 @@ class Bomb:
         screen.blit(self.img, self.rct)
 
 
+class Explosion:
+    """
+    爆発エフェクトに関するクラス
+    """
+    def __init__(self, bomb_rct: pg.Rect):
+        """
+        爆発エフェクトの画像Surfaceを生成する
+        引数 bomb_rct: 爆発が発生する座標情報
+        """
+        self.imgs = [
+            pg.image.load(f"fig/explosion.gif")
+        ]  # 爆発画像のリスト
+        self.imgs = [pg.transform.rotozoom(img, 0, 0.5) for img in self.imgs]  # サイズ調整
+        self.rct = self.imgs[0].get_rect()
+        self.rct.center = bomb_rct.center
+        self.life = len(self.imgs)  # 爆発の持続時間（画像数に基づく）
+
+    def update(self, screen: pg.Surface):
+        """
+        爆発エフェクトを更新する
+        引数 screen: 画面Surface
+        """
+        if self.life > 0:
+            screen.blit(self.imgs[-self.life], self.rct)  # ライフに応じた画像を描画
+            self.life -= 1  # ライフを1減少
+
+
 def main():
     pg.display.set_caption("たたかえ！こうかとん")
-    screen = pg.display.set_mode((WIDTH, HEIGHT))    
+    screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load("fig/pg_bg.jpg")
     bird = Bird((300, 200))
-    bomb = Bomb((255, 0, 0), 10)
-    beam = None  # Beam(bird)  # ビームインスタンス生成
-    # bomb2 = Bomb((0, 0, 255), 20)   
-    bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)] 
+    bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]
+    beam = None
+    explosions = []  # 爆発エフェクトのリスト
+
     clock = pg.time.Clock()
     tmr = 0
     while True:
@@ -157,45 +184,45 @@ def main():
             if event.type == pg.QUIT:
                 return
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                # スペースキー押下でBeamクラスのインスタンス生成
-                beam = Beam(bird)            
+                beam = Beam(bird)  # スペースキー押下でビーム生成
+
         screen.blit(bg_img, [0, 0])
-        
+
         for bomb in bombs:
             if bird.rct.colliderect(bomb.rct):
-                # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
                 bird.change_img(8, screen)
                 fonto = pg.font.Font(None, 80)
                 txt = fonto.render("Game Over", True, (255, 0, 0))
-                screen.blit(txt, [WIDTH//2-150, HEIGHT//2])
+                screen.blit(txt, [WIDTH // 2 - 150, HEIGHT // 2])
                 pg.display.update()
                 time.sleep(1)
                 return
 
         for i, bomb in enumerate(bombs):
-            if beam is not None:
-                if beam.rct.colliderect(bomb.rct):  # ビームが爆弾を撃ち落としたら
-                    beam = None
-                    bombs[i] = None
-                    bird.change_img(6, screen)
-                    pg.display.update()
+            if beam is not None and beam.rct.colliderect(bomb.rct):
+                explosions.append(Explosion(bomb.rct))  # 爆発エフェクトを追加
+                bombs[i] = None
+                beam = None
+                bird.change_img(6, screen)
 
         key_lst = pg.key.get_pressed()
         bird.update(key_lst, screen)
-        # beam.update(screen)
-        bombs = [bomb for bomb in bombs if bomb is not None]  # Noneでないものリスト
-        for bomb in bombs:
-            bomb.update(screen)
         if beam is not None:
             beam.update(screen)
-        # bomb2.update(screen)
+
+        bombs = [bomb for bomb in bombs if bomb is not None]  # 有効な爆弾のみ保持
+        for bomb in bombs:
+            bomb.update(screen)
+
+        explosions = [exp for exp in explosions if exp.life > 0]  # 生存している爆発のみ保持
+        for exp in explosions:
+            exp.update(screen)
+
         pg.display.update()
         tmr += 1
         clock.tick(50)
 
-
 if __name__ == "__main__":
-    pg.init()
     main()
     pg.quit()
     sys.exit()
