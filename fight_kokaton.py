@@ -83,12 +83,13 @@ class Beam:
         self.rct.center = bird.rct.center  # こうかとんの中心
         vx, vy = bird.dire  # Birdクラスの向きに応じて設定
         norm = math.sqrt(vx**2 + vy**2)
-        self.vx, self.vy = (vx / norm) * 5, (vy / norm) * 5
+        self.vx, self.vy = (vx / norm) * 5, (vy / norm) * 5  # 正規化して速度を設定
         angle = math.degrees(math.atan2(-self.vy, self.vx))
         self.img = pg.transform.rotozoom(self.img, angle, 1.0)
 
     def update(self, screen: pg.Surface):
-        if check_bound(self.rct) == (True, True):
+        self.rct.move_ip(self.vx, self.vy)  # ビームの位置を更新
+        if check_bound(self.rct) == (True, True):  # 画面内の場合
             screen.blit(self.img, self.rct)
 
 
